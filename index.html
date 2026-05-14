@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>El Expreso Carmesí · Misterio de Asesinato</title>
+<link rel="stylesheet" href="styles.css">
+<!-- Font Awesome para íconos profesionales -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<!-- Three.js y Vanta.js Fog para la niebla volumétrica -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.fog.min.js"></script>
+<!-- Librería de Audio Profesional -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
+</head>
+<body>
+<div id="vanta-bg" style="position: fixed; inset: 0; z-index: -1;"></div>
+<canvas id="rain-canvas"></canvas>
+<div id="grain"></div>
+<button id="mute-btn" onclick="toggleMute()" title="Silenciar / Activar sonido">🔊</button>
+
+<div id="app">
+
+  <!-- ════════════════════════════════════════
+       PANTALLA 1 — INTRO
+  ════════════════════════════════════════ -->
+  <div id="s-intro" class="screen active">
+    <div class="intro-wrap">
+      <div class="intro-eyebrow">1937 · El tren más lujoso y peligroso de Europa</div>
+      <div class="intro-logo">El Expreso<br>Carmesí</div>
+      <div class="intro-sub">Misterio de Asesinato</div>
+      <div class="gold-line"></div>
+      <p class="intro-desc">
+        Lord Edmund Blackwood, magnate del acero y guardián de secretos
+        peligrosos, ha sido hallado muerto antes de llegar a Viena.
+        Usted es el Detective Renard. Cinco pasajeros sin coartada.
+        Una sola oportunidad para resolver el caso.
+      </p>
+      <span class="intro-ornament">◆ ◇ ◆ ◇ ◆</span>
+      <button class="btn" onclick="startBrief()"><span>Comenzar Investigación</span></button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       PANTALLA 2 — BRIEF DEL CASO
+  ════════════════════════════════════════ -->
+  <div id="s-brief" class="screen">
+    <div class="brief-wrap">
+      <div class="brief-header">Detective Renard · Caso #1937-EC · En progreso</div>
+
+      <div class="case-card glass-card">
+        <div class="victim-portrait">
+          <div class="victim-icon"><i class="fa-solid fa-skull"></i></div>
+          <div class="victim-tag">Víctima</div>
+        </div>
+        <div>
+          <div class="case-title">Asesinato en el Expreso Carmesí</div>
+          <div class="case-victim-name">LORD EDMUND BLACKWOOD · Magnate del Acero</div>
+          <p class="case-desc">
+            El cuerpo fue descubierto a las 7:14 AM por el mozo de cabina.
+            La muerte se produjo entre las 23:00 y la medianoche según el
+            médico a bordo. Cinco pasajeros de primera clase no tienen
+            coartada verificada. El asesino aún se encuentra en el tren.
+          </p>
+        </div>
+      </div>
+
+      <div class="suspects-label">Sospechosos · 5 perfiles sin coartada</div>
+      <div class="suspects-row" id="brief-suspects"></div>
+
+      <div class="gold-line"></div>
+      <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+        <button class="btn" onclick="startInvestigation()">
+          <span>▶ Comenzar Investigación</span>
+        </button>
+        <span style="font-family:var(--font-b);font-style:italic;font-size:var(--sz-sm);color:var(--muted)">
+          Investiga al menos 3 escenas antes de acusar
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       PANTALLA 3 — INVESTIGAR
+  ════════════════════════════════════════ -->
+  <div id="s-investigate" class="screen">
+    <div class="inv-wrap">
+      <div class="inv-header">
+        <div class="inv-brand">EL EXPRESO CARMESÍ</div>
+        <div class="inv-prog-txt">
+          Escenas: <span id="scenes-count">0</span>/5 ·
+          Pistas: <span id="clues-count">0</span> ·
+          Interrogados: <span id="interr-count">0</span>/5
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('scenes', this)">Escenas del Crimen</button>
+        <button class="tab" onclick="switchTab('suspects', this)">Sospechosos</button>
+        <button class="tab" onclick="switchTab('notebook', this)">Cuaderno</button>
+      </div>
+
+      <div id="tab-scenes" class="tab-panel active">
+        <div class="loc-grid" id="loc-grid"></div>
+      </div>
+
+      <div id="tab-suspects" class="tab-panel">
+        <p style="font-family:var(--font-b);font-style:italic;font-size:var(--sz-sm);color:var(--muted);margin-bottom:1rem;">
+          Selecciona un sospechoso para interrogarlo.
+          Deberás elegir <strong style="color:var(--cream)">una sola pregunta</strong>
+          deslizando la carta — elige con cuidado.
+        </p>
+        <div class="suspects-grid" id="susp-grid"></div>
+      </div>
+
+      <div id="tab-notebook" class="tab-panel">
+        <div class="notebook">
+          <div class="notebook-header">◆ Cuaderno del Detective Renard</div>
+          <div id="notebook-entries">
+            <p class="no-clues">— El cuaderno está vacío. Investigue las escenas. —</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="inv-bottom">
+        <div class="inv-stats">
+          <div class="inv-stat">Visitadas: <span id="b-scenes">0</span>/5</div>
+          <div class="inv-stat">Pistas: <span id="b-clues">0</span></div>
+        </div>
+        <button class="btn btn-sm btn-danger" id="btn-accuse"
+                onclick="goToAccuse()" disabled>
+          <span>Realizar Acusación →</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       PANTALLA 4 — ACUSACIÓN
+  ════════════════════════════════════════ -->
+  <div id="s-accuse" class="screen">
+    <div class="acc-wrap">
+      <div class="acc-title">Realizar Acusación Final</div>
+      <p class="acc-sub">
+        Detective Renard, seleccione al culpable, el arma y el lugar del
+        crimen. Esta decisión es irrevocable.
+      </p>
+      <div class="gold-line"></div>
+
+      <div class="acc-section">
+        <div class="acc-section-label">¿Quién es el culpable?</div>
+        <div class="acc-grid" id="acc-chars"></div>
+      </div>
+
+      <div class="acc-section">
+        <div class="acc-section-label">¿Cuál fue el arma del crimen?</div>
+        <div class="acc-grid" id="acc-weapons"></div>
+        <!-- Detail panel revealed on weapon select -->
+        <div id="weapon-detail">
+          <div class="wd-name" id="wd-name">—</div>
+          <div class="wd-desc" id="wd-desc">—</div>
+          <div class="wd-alibi-label">Explicación del dueño</div>
+          <div class="wd-alibi" id="wd-alibi">—</div>
+        </div>
+      </div>
+
+      <div class="acc-section">
+        <div class="acc-section-label">¿En qué lugar ocurrió el crimen?</div>
+        <div class="acc-grid" id="acc-rooms"></div>
+      </div>
+
+      <div class="gold-line"></div>
+      <div class="acc-confirm-area">
+        <div class="acc-summary" id="acc-summary">
+          Seleccione al culpable, el arma y el lugar del crimen.
+        </div>
+        <button class="btn btn-danger" id="btn-confirm"
+                onclick="confirmAccusation()" disabled>
+          <i class="fa-solid fa-scale-balanced"></i>
+        </button>
+        <br><br>
+        <button class="btn btn-sm" onclick="goTo('s-investigate','investigation')">
+          <span>← Volver a Investigar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       PANTALLA 5 — RESOLUCIÓN
+  ════════════════════════════════════════ -->
+  <div id="s-resolve" class="screen">
+    <div class="res-wrap">
+      <div id="verdict-banner" class="verdict-banner">
+        <span class="verdict-icon" id="verdict-icon">⚖</span>
+        <div class="verdict-title" id="verdict-title">—</div>
+        <div class="verdict-sub"   id="verdict-sub">—</div>
+      </div>
+
+      <div class="solution-reveal">
+        <div class="sol-item">
+          <div class="sol-label">Culpable</div>
+          <div class="sol-value" id="sol-culprit">—</div>
+        </div>
+        <div class="sol-item">
+          <div class="sol-label">Arma</div>
+          <div class="sol-value" id="sol-weapon">—</div>
+        </div>
+        <div class="sol-item">
+          <div class="sol-label">Lugar del crimen</div>
+          <div class="sol-value" id="sol-room">—</div>
+        </div>
+      </div>
+
+      <div class="gold-line"></div>
+      <div class="story-title"  id="story-title">—</div>
+      <div class="story-author" id="story-author">—</div>
+      <div class="story-text"   id="story-text">—</div>
+
+      <div class="res-actions">
+        <button class="btn" onclick="newGame()"><span>↺ Nueva Partida</span></button>
+        <button class="btn btn-sm" onclick="goTo('s-intro','intro')"><span>← Inicio</span></button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<!-- ════════════════════════════════════════
+     MODAL — Vista de locación
+     CLOSE BUTTON: en topbar sticky, no float
+════════════════════════════════════════ -->
+<div id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div id="modal-box">
+    <!-- Sticky close button at the top -->
+    <div class="modal-topbar">
+      <button class="modal-close" onclick="closeModalBtn()">✕ Cerrar</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-inner"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     REIGNS — Interrogatorio por carta (3 rondas)
+════════════════════════════════════════ -->
+<div id="reigns-overlay">
+
+  <!-- ── Cabecera: sospechoso + progreso ── -->
+  <div class="r-header">
+    <div class="r-header-left">
+      <span id="r-header-emoji"><i class="fa-solid fa-user-secret"></i></span>
+      <div>
+        <div class="r-header-name" id="r-header-name">—</div>
+        <div class="r-header-role" id="r-header-role">—</div>
+      </div>
+    </div>
+    <div class="r-progress-wrap">
+      <div class="r-step-dots" id="r-step-dots">
+        <div class="r-dot" id="rd-0"></div>
+        <div class="r-dot" id="rd-1"></div>
+        <div class="r-dot" id="rd-2"></div>
+      </div>
+      <div class="r-progress-label" id="r-progress-label">Ronda 1 de 3</div>
+    </div>
+  </div>
+
+  <!-- ── Tipo de interacción ── -->
+  <div class="r-type-badge" id="r-type-badge">Pregunta</div>
+
+  <!-- ── Contexto narrativo ── -->
+  <div class="r-context" id="r-context">—</div>
+
+  <!-- Etiqueta izquierda -->
+  <div class="r-hint" id="r-hint-left">
+    <div class="r-hint-arrow">←</div>
+    <div class="r-hint-q" id="r-q-left">Pregunta A</div>
+  </div>
+
+  <!-- Etiqueta derecha -->
+  <div class="r-hint" id="r-hint-right">
+    <div class="r-hint-arrow">→</div>
+    <div class="r-hint-q" id="r-q-right">Pregunta B</div>
+  </div>
+
+  <!-- Carta draggable -->
+  <div id="r-card-wrap">
+    <div id="r-card">
+      <div id="r-card-top">
+        <span id="r-emoji"><i class="fa-solid fa-user-secret"></i></span>
+      </div>
+      <div class="r-card-body">
+        <div id="r-name">—</div>
+        <div class="r-card-sep"></div>
+        <div class="r-card-options">
+          <div class="r-option-left"  id="r-opt-left">—</div>
+          <div class="r-option-right" id="r-opt-right">—</div>
+        </div>
+        <div class="r-instruction">← Desliza para elegir →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Respuesta intermedia (entre cartas 1→2→3) ── -->
+  <div id="r-midanswer" style="display:none">
+    <div class="r-midans-reaction" id="r-midans-reaction">—</div>
+    <div class="r-midans-indicator" id="r-midans-indicator"></div>
+    <button class="r-next-btn" id="r-next-btn" onclick="rNextCard()">
+      <span>Continuar →</span>
+    </button>
+  </div>
+
+  <!-- ── Resultado final (post 3 cartas) ── -->
+  <div id="r-final-result" style="display:none">
+    <div class="r-final-icon" id="r-final-icon">—</div>
+    <div class="r-final-score" id="r-final-score">—</div>
+    <div class="r-final-verdict" id="r-final-verdict">—</div>
+    <div class="r-final-clue-wrap" id="r-final-clue-wrap" style="display:none">
+      <div class="r-clue-notif-big">
+        <span class="r-clue-icon">◆</span>
+        <div>
+          <div class="r-clue-label">Pista Obtenida</div>
+          <div class="r-clue-text" id="r-final-clue-text">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="r-penalty-wrap" id="r-penalty-wrap" style="display:none">
+      <div class="r-penalty-notif">
+        <span class="r-penalty-icon">⚠</span>
+        <div>
+          <div class="r-penalty-label">Entrada falsa en el cuaderno</div>
+          <div class="r-penalty-text" id="r-penalty-text">—</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn" onclick="closeReigns()"><span>Cerrar Interrogatorio</span></button>
+  </div>
+
+  <div class="r-close-wrap">
+    <button class="r-close-btn" onclick="closeReigns()">✕ Cerrar</button>
+  </div>
+</div>
+
+<!--
+  Orden de carga:
+  1. data.js    → contenido del juego
+  2. sounds.js  → motor de audio
+  3. engine.js  → lógica y flujo
+-->
+<script src="data.js"></script>
+<script src="sounds.js"></script>
+<script src="engine.js"></script>
+
+</body>
+</html>
